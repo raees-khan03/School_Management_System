@@ -9,18 +9,41 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@clerk/nextjs": "^5.7.6",
+    "@hookform/resolvers": "^5.9.1",
+    "@prisma/client": "^5.20.0",
+    "@uploadthing/react": "^7.3.3",
+    "moment": "^2.31.0",
+    "next": "^14.2.25",
     "react": "^18",
+    "react-big-calendar": "^1.20.0",
+    "react-calendar": "^6.0.1",
     "react-dom": "^18",
-    "next": "14.2.5"
+    "react-hook-form": "^7.89.0",
+    "recharts": "^3.10.1",
+    "uploadthing": "^7.7.4",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "typescript": "^5",
     "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "postcss": "^8",
-    "tailwindcss": "^3.4.1",
+    "@types/react": "^19.3.0",
+    "@types/react-big-calendar": "^1.16.3",
+    "@types/react-dom": "^19.3.0",
     "eslint": "^8",
-    "eslint-config-next": "14.2.5"
+    "eslint-config-next": "14.2.5",
+    "postcss": "^8",
+    "prisma": "^5.20.0",
+    "tailwindcss": "^3.4.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "allowScripts": {
+    "prisma@5.20.0": true,
+    "@prisma/engines@5.20.0": true,
+    "unrs-resolver@1.12.2": true,
+    "@prisma/client@5.20.0": true
   }
 }

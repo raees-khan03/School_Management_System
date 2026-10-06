@@ -1,3 +1,130 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom Scrollbar for SaaS Look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent; 
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1; 
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; 
+}
+
+/* React Calendar Modern SaaS Overrides */
+.react-calendar {
+  width: 100% !important;
+  border: none !important;
+  font-family: inherit !important;
+  background: transparent !important;
+}
+
+.react-calendar__navigation__label__labelText {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.rbc-calendar {
+  height: 100% !important;
+  font-family: inherit;
+}
+
+.rbc-toolbar-label {
+  text-align: right !important;
+  padding: 0 20px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.rbc-btn-group:last-child {
+  font-size: 13px !important;
+}
+
+.rbc-btn-group:last-child button {
+  border: none !important;
+  background-color: #f8fafc !important;
+  margin-left: 4px !important;
+  color: #475569 !important;
+  font-weight: 500;
+}
+
+.rbc-btn-group:last-child button:hover {
+  background-color: #e2e8f0 !important;
+}
+
+.rbc-active {
+  background-color: #eef2ff !important; /* Soft Indigo */
+  color: #4f46e5 !important;
+  box-shadow: none !important;
+}
+
+.rbc-time-view {
+  border-color: #f1f5f9 !important;
+  border-radius: 12px;
+  overflow: hidden;
+  background: white;
+}
+
+.rbc-time-header {
+  display: none !important;
+}
+
+.rbc-time-content {
+  border: none !important;
+}
+
+.rbc-time-gutter .rbc-time-column {
+  font-size: 12px !important;
+  color: #94a3b8;
+}
+
+.rbc-label {
+  font-size: 12px !important;
+}
+
+.rbc-event {
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 4px 8px !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+}
+
+.rbc-event-label {
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  opacity: 0.9;
+}
+
+.rbc-event-content {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  margin-top: 2px;
+}
+
+.rbc-today {
+  background-color: #f8fafc;
+}
+
+.rbc-current-time-indicator {
+  background-color: #4f46e5; /* Indigo */
+  height: 2px;
+}
+
+.rbc-toolbar button {
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  font-size: 13px;
+  padding: 6px 12px;
+  transition: all 0.2s;
+}
+
+.rbc-toolbar button:hover {
+  background-color: #f1f5f9;
+}

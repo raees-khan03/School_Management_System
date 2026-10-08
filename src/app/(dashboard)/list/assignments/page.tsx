@@ -2,107 +2,156 @@ import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
 import Pagination from "@/components/Pagination";
 import FormModal from "@/components/FormModal";
-import Image from "next/image";
+import FilterButton from "@/components/FilterButton";
+import SortButton from "@/components/SortButton";
+import ClearFiltersButton from "@/components/ClearFiltersButton";
 import prisma from "@/lib/prisma";
-import { role } from "@/lib/data";
+import { getAuthUser } from "@/lib/getRole";
 
 const ITEM_PER_PAGE = 10;
 
-const columns = [
-  { header: "Subject Name", accessor: "subject" },
-  { header: "Class", accessor: "class", className: "hidden md:table-cell" },
-  { header: "Teacher", accessor: "teacher", className: "hidden md:table-cell" },
-  { header: "Due Date", accessor: "dueDate", className: "hidden lg:table-cell" },
-  { header: "Actions", accessor: "action" },
-];
+const formatDate = (v: Date | string) => {
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return "-";
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(d);
+};
 
-const AssignmentsListPage = async ({
+export default async function AnnouncementsListPage({
   searchParams,
 }: {
   searchParams: { [key: string]: string | undefined };
-}) => {
-  const { page, ...queryParams } = searchParams;
-  const p = page ? parseInt(page) : 1;
+}) {
+  const { role, userId } = await getAuthUser();
+
+  const columns = [
+    { header: "Title", accessor: "title" },
+    { header: "Class", accessor: "class", className: "hidden md:table-cell" },
+    { header: "Date", accessor: "date", className: "hidden md:table-cell" },
+    ...(role === "admin"
+      ? [{ header: "Actions", accessor: "action", align: "right" as const }]
+      : []),
+  ];
+
+  const { page, sort, ...queryParams } = searchParams;
+  const p = page ? Math.max(1, parseInt(page) || 1) : 1;
+  const sortOrder = sort === "desc" ? "desc" : "asc";
 
   const query: any = {};
-  if (queryParams) {
-    for (const [key, value] of Object.entries(queryParams)) {
-      if (value !== undefined) {
-        switch (key) {
-          case "classId":
-            query.lesson = { classId: parseInt(value) };
-            break;
-          case "teacherId":
-            query.lesson = { teacherId: value };
-            break;
-          case "search":
-            query.title = { contains: value, mode: "insensitive" };
-            break;
-          default:
-            break;
-        }
-      }
+
+  for (const [key, value] of Object.entries(queryParams)) {
+    if (!value) continue;
+    switch (key) {
+      case "search":
+        query.title = { contains: value, mode: "insensitive" };
+        break;
+      case "classId":
+        query.classId = parseInt(value);
+        break;
+      default:
+        break;
     }
   }
 
-  const [assignments, count] = await prisma.$transaction([
-    prisma.assignment.findMany({
+  // Role-based visibility
+  if (role !== "admin" && userId) {
+    if (role === "teacher") {
+      query.OR = [
+        { classId: null },
+        {
+          class: {
+            OR: [
+              { lessons: { some: { teacherId: userId } } },
+              { supervisorId: userId },
+            ],
+          },
+        },
+      ];
+    } else if (role === "student") {
+      query.OR = [{ classId: null }, { class: { students: { some: { id: userId } } } }];
+    } else if (role === "parent") {
+      query.OR = [{ classId: null }, { class: { students: { some: { parentId: userId } } } }];
+    }
+  }
+
+  const [announcements, count, classes] = await prisma.$transaction([
+    prisma.announcement.findMany({
       where: query,
-      include: {
-        lesson: { include: { subject: true, class: true, teacher: true } },
-      },
+      include: { class: true },
       take: ITEM_PER_PAGE,
       skip: ITEM_PER_PAGE * (p - 1),
+      orderBy: { date: sortOrder },
     }),
-    prisma.assignment.count({ where: query }),
+    prisma.announcement.count({ where: query }),
+    prisma.class.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
   const renderRow = (item: any) => (
-    <tr key={item.id} className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight">
-      <td className="flex items-center gap-4 p-4">
-        <h3 className="font-semibold">{item.lesson.subject.name}</h3>
-      </td>
-      <td className="hidden md:table-cell">{item.lesson.class.name}</td>
-      <td className="hidden md:table-cell">
-        {item.lesson.teacher.name} {item.lesson.teacher.surname}
-      </td>
-      <td className="hidden lg:table-cell">
-        {new Intl.DateTimeFormat("en-GB").format(new Date(item.dueDate))}
-      </td>
+    <tr key={item.id} className="text-sm">
       <td>
-        <div className="flex items-center gap-2">
-          {role === "admin" && (
-            <>
-              <FormModal table="assignment" type="update" data={item} id={item.id} />
-              <FormModal table="assignment" type="delete" id={item.id} />
-            </>
-          )}
+        <div className="flex flex-col min-w-0">
+          <span className="font-semibold text-slate-900 truncate">{item.title}</span>
+          <span className="text-xs text-slate-500 truncate">{item.description}</span>
         </div>
       </td>
+      <td className="hidden md:table-cell">
+        {item.class?.name ? (
+          <span className="inline-flex rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-semibold text-teal-700 ring-1 ring-inset ring-teal-600/20">
+            {item.class.name}
+          </span>
+        ) : (
+          <span className="text-xs text-slate-400">All classes</span>
+        )}
+      </td>
+      <td className="hidden md:table-cell whitespace-nowrap tabular-nums">
+        {formatDate(item.date)}
+      </td>
+      {role === "admin" && (
+        <td>
+          <div className="flex items-center justify-end gap-2">
+            <FormModal
+              table="announcement"
+              type="update"
+              data={JSON.parse(JSON.stringify(item))}
+              id={item.id}
+            />
+            <FormModal table="announcement" type="delete" id={item.id} />
+          </div>
+        </td>
+      )}
     </tr>
   );
 
   return (
-    <div className="bg-white m-4 mt-0 rounded-md flex-1 h-full p-4">
-      <div className="flex items-center justify-between">
-        <h1 className="hidden md:block text-lg font-semibold">All Assignments</h1>
-        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+    <div className="m-4 flex-1 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:m-6 md:p-6">
+      <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <h1 className="text-lg font-semibold text-slate-900">All Announcements</h1>
+
+        <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center">
           <TableSearch />
-          <div className="flex items-center gap-4 self-end">
-            <button className="w-8 h-8 rounded-full flex items-center justify-center bg-lamaYellow">
-              <Image src="/filter.png" height={14} width={14} alt="filter" />
-            </button>
-            <button className="w-8 h-8 rounded-full flex items-center justify-center bg-lamaYellow">
-              <Image src="/sort.png" height={14} width={14} alt="sort" />
-            </button>
-            {role === "admin" && <FormModal table="assignment" type="create" />}
+          <div className="flex items-center gap-2 self-end md:self-auto">
+            <FilterButton
+              param="classId"
+              label="Class"
+              options={classes.map((c) => ({ label: c.name, value: String(c.id) }))}
+            />
+            <SortButton />
+            <ClearFiltersButton />
+            {role === "admin" && <FormModal table="announcement" type="create" />}
           </div>
         </div>
       </div>
-      <Table columns={columns} renderRow={renderRow} data={assignments} />
+
+      <Table
+        columns={columns}
+        renderRow={renderRow}
+        data={announcements}
+        emptyMessage="No announcements found."
+      />
       <Pagination page={p} count={count} />
     </div>
   );
-};
-
-export default AssignmentsListPage;
+}

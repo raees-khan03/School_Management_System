@@ -213,3 +213,34 @@ model Announcement {
   classId     Int?
   class       Class?   @relation(fields: [classId], references: [id])
 }
+
+
+
+model Conversation {
+  id        String   @id @default(cuid())
+  
+  // Jo 2 log chat kar rahe hain unki Clerk User IDs (e.g. ["user_123", "user_456"])
+  members   String[] 
+  
+  messages  Message[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  text           String
+  
+  // Kisne bheja?
+  senderId       String       
+  
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  // WhatsApp Features
+  isRead         Boolean      @default(false) 
+  isDeleted      Boolean      @default(false)
+  
+  createdAt      DateTime     @default(now())
+}

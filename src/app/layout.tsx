@@ -2,12 +2,14 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
-// Modern SaaS Font
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "School Management Dashboard",
-  description: "Next.js School Management System",
+  title: "CampusPulse — Modern Campus Management Platform",
+  description: "Enterprise campus management system for admins, teachers, students, and parents.",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

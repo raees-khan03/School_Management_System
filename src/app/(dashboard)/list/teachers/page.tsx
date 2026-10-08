@@ -2,54 +2,64 @@ import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
 import Pagination from "@/components/Pagination";
 import FormModal from "@/components/FormModal";
+import FilterButton from "@/components/FilterButton";
+import SortButton from "@/components/SortButton";
+import ClearFiltersButton from "@/components/ClearFiltersButton";
+import ViewButton from "@/components/ViewButton";
 import Image from "next/image";
-import Link from "next/link";
 import prisma from "@/lib/prisma";
 import { getAuthUser } from "@/lib/getRole";
 import type { TeacherWithRelations } from "@/types";
+import { Column } from "@/components/Table";
 
 const ITEM_PER_PAGE = 10;
 
-const TeachersListPage = async ({
+export default async function TeachersListPage({
   searchParams,
 }: {
   searchParams: { [key: string]: string | undefined };
-}) => {
+}) {
   const { role } = await getAuthUser();
 
-  const columns = [
+  const columns: Column[] = [
     { header: "Info", accessor: "info" },
     { header: "Teacher ID", accessor: "teacherId", className: "hidden md:table-cell" },
-    { header: "Subjects", accessor: "subjects", className: "hidden md:table-cell" },
-    { header: "Classes", accessor: "classes", className: "hidden md:table-cell" },
-    { header: "Phone", accessor: "phone", className: "hidden lg:table-cell" },
-    { header: "Address", accessor: "address", className: "hidden lg:table-cell" },
-    ...(role === "admin" ? [{ header: "Actions", accessor: "action" }] : []),
+    { header: "Subjects", accessor: "subjects", className: "hidden lg:table-cell" },
+    { header: "Classes", accessor: "classes", className: "hidden xl:table-cell" },
+    ...(role === "admin"
+      ? [
+          { header: "Phone", accessor: "phone", className: "hidden md:table-cell" },
+          { header: "Address", accessor: "address", className: "hidden lg:table-cell" },
+          { header: "Actions", accessor: "action", align: "right" as const },
+        ]
+      : []),
   ];
 
-  const { page, ...queryParams } = searchParams;
-  const p = page ? parseInt(page) : 1;
+  const { page, sort, ...queryParams } = searchParams;
+  const p = page ? Math.max(1, parseInt(page) || 1) : 1;
+  const sortOrder = sort === "desc" ? "desc" : "asc";
 
   const query: any = {};
 
-  if (queryParams) {
-    for (const [key, value] of Object.entries(queryParams)) {
-      if (value !== undefined) {
-        switch (key) {
-          case "classId":
-            query.lessons = { some: { classId: parseInt(value) } };
-            break;
-          case "search":
-            query.name = { contains: value, mode: "insensitive" };
-            break;
-          default:
-            break;
-        }
-      }
+  for (const [key, value] of Object.entries(queryParams)) {
+    if (!value) continue;
+    switch (key) {
+      case "classId":
+        query.lessons = { some: { classId: parseInt(value) } };
+        break;
+      case "search":
+        query.OR = [
+          { name: { contains: value, mode: "insensitive" } },
+          { surname: { contains: value, mode: "insensitive" } },
+          { username: { contains: value, mode: "insensitive" } },
+        ];
+        break;
+      default:
+        break;
     }
   }
 
-  const [teachers, count] = await prisma.$transaction([
+  const [teachers, count, classes] = await prisma.$transaction([
     prisma.teacher.findMany({
       where: query,
       include: {
@@ -58,78 +68,107 @@ const TeachersListPage = async ({
       },
       take: ITEM_PER_PAGE,
       skip: ITEM_PER_PAGE * (p - 1),
-      orderBy: { name: "asc" },
+      orderBy: { name: sortOrder },
     }),
     prisma.teacher.count({ where: query }),
+    prisma.class.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   const renderRow = (item: TeacherWithRelations) => (
-    <tr
-      key={item.id}
-      className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
-    >
-      <td className="flex items-center gap-4 p-4">
-        <Image
-          src={item.img || "/noAvatar.png"}
-          alt={item.name}
-          width={40}
-          height={40}
-          className="md:hidden xl:block w-10 h-10 rounded-full object-cover"
-        />
-        <div className="flex flex-col">
-          <h3 className="font-semibold">
-            {item.name} {item.surname}
-          </h3>
-          <p className="text-xs text-gray-500">{item.email}</p>
+    <tr key={item.id} className="text-sm">
+      <td>
+        <div className="flex min-w-0 items-center gap-3">
+          <Image
+            src={item.img || "/noAvatar.png"}
+            alt={`${item.name} ${item.surname}`}
+            width={36}
+            height={36}
+            unoptimized
+            className="h-9 w-9 shrink-0 rounded-full border border-slate-200 object-cover"
+          />
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate font-semibold text-slate-900">
+              {item.name} {item.surname}
+            </span>
+            {role === "admin" && (
+              <span className="truncate text-xs text-slate-500">{item.email || "-"}</span>
+            )}
+          </div>
         </div>
       </td>
-      <td className="hidden md:table-cell">{item.id}</td>
-      <td className="hidden md:table-cell">
-        {item.subjects.map((s) => s.name).join(", ") || "-"}
+      <td className="hidden md:table-cell">{item.username || item.id}</td>
+      <td className="hidden lg:table-cell">
+        <div className="flex flex-wrap gap-1">
+          {item.subjects.map((s) => (
+            <span
+              key={s.id}
+              className="rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-700 ring-1 ring-inset ring-teal-600/20"
+            >
+              {s.name}
+            </span>
+          ))}
+          {item.subjects.length === 0 && <span className="text-xs text-slate-400">-</span>}
+        </div>
       </td>
-      <td className="hidden md:table-cell">
-        {item.classes.map((c) => c.name).join(", ") || "-"}
+      <td className="hidden xl:table-cell">
+        <div className="flex flex-wrap gap-1">
+          {item.classes.map((c) => (
+            <span
+              key={c.id}
+              className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700"
+            >
+              {c.name}
+            </span>
+          ))}
+          {item.classes.length === 0 && <span className="text-xs text-slate-400">-</span>}
+        </div>
       </td>
-      <td className="hidden lg:table-cell">{item.phone || "-"}</td>
-      <td className="hidden lg:table-cell">{item.address}</td>
+      
       {role === "admin" && (
-        <td>
-          <div className="flex items-center gap-2">
-            <Link href={`/list/teachers/${item.id}`}>
-              <button className="w-7 h-7 flex items-center justify-center rounded-full bg-lamaSky">
-                <Image src="/view.png" alt="view" width={16} height={16} />
-              </button>
-            </Link>
-            <FormModal table="teacher" type="update" data={item} id={item.id} />
-            <FormModal table="teacher" type="delete" id={item.id} />
-          </div>
-        </td>
+        <>
+          <td className="hidden whitespace-nowrap tabular-nums md:table-cell">
+            {item.phone || "-"}
+          </td>
+          <td className="hidden max-w-[200px] lg:table-cell">
+            <span className="block truncate">{item.address}</span>
+          </td>
+          <td>
+            <div className="flex items-center justify-end gap-2">
+              <ViewButton href={`/list/teachers/${item.id}`} />
+              <FormModal table="teacher" type="update" data={item} id={item.id} />
+              <FormModal table="teacher" type="delete" id={item.id} />
+            </div>
+          </td>
+        </>
       )}
     </tr>
   );
 
   return (
-    <div className="bg-white m-4 mt-0 rounded-md flex-1 h-full p-4">
-      <div className="flex items-center justify-between">
-        <h1 className="hidden md:block text-lg font-semibold">All Teachers</h1>
-        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+    <div className="m-4 flex-1 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:m-6 md:p-6">
+      <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <h1 className="text-lg font-semibold text-slate-900">All Teachers</h1>
+
+        <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center">
           <TableSearch />
-          <div className="flex items-center gap-4 self-end">
-            <button className="w-8 h-8 rounded-full flex items-center justify-center bg-lamaYellow">
-              <Image src="/filter.png" height={14} width={14} alt="filter" />
-            </button>
-            <button className="w-8 h-8 rounded-full flex items-center justify-center bg-lamaYellow">
-              <Image src="/sort.png" height={14} width={14} alt="sort" />
-            </button>
+          <div className="flex items-center gap-2 self-end md:self-auto">
+            <FilterButton
+              param="classId"
+              label="Class"
+              options={classes.map((c) => ({ label: c.name, value: String(c.id) }))}
+            />
+            <SortButton />
+            <ClearFiltersButton />
             {role === "admin" && <FormModal table="teacher" type="create" />}
           </div>
         </div>
       </div>
 
-      <Table columns={columns} renderRow={renderRow} data={teachers} />
+      <Table columns={columns} renderRow={renderRow} data={teachers} emptyMessage="No teachers found." />
       <Pagination page={p} count={count} />
     </div>
   );
-};
-
-export default TeachersListPage;
+}

@@ -1,46 +1,53 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { createParent, updateParent } from "@/lib/actions/parent";
 
 const schema = z.object({
   username: z
     .string()
-    .min(3, { message: "Username must be at least 3 characters!" })
-    .max(20),
-  name: z.string().min(1, { message: "First name is required!" }),
-  surname: z.string().min(1, { message: "Surname is required!" }),
-  email: z
+    .trim()
+    .min(3, "Username must be at least 3 characters")
+    .max(30),
+  name: z.string().trim().min(1, "First name is required"),
+  surname: z.string().trim().min(1, "Surname is required"),
+  email: z.string().trim().email("Invalid email").optional().or(z.literal("")),
+  phone: z
     .string()
-    .email({ message: "Invalid email address!" })
-    .optional()
-    .or(z.literal("")),
-  phone: z.string().min(10, { message: "Phone must be at least 10 digits!" }),
-  address: z.string().min(1, { message: "Address is required!" }),
+    .trim()
+    .regex(/^[0-9+\-\s()]{10,15}$/, "Enter a valid phone number (10-15 digits)"),
+  address: z.string().trim().min(1, "Address is required"),
 });
 
-type Inputs = z.infer<typeof schema>;
+type Inputs = z.input<typeof schema>;
 
-const ParentForm = ({
-  type,
-  data,
-  onSuccess,
-}: {
+const inputClass = (err?: boolean) =>
+  `h-10 w-full rounded-lg border bg-white px-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:ring-4 disabled:cursor-not-allowed disabled:bg-slate-50 ${
+    err
+      ? "border-red-300 focus:border-red-500 focus:ring-red-500/15"
+      : "border-slate-200 focus:border-teal-500 focus:ring-teal-500/15"
+  }`;
+
+type Props = {
   type: "create" | "update";
   data?: any;
   onSuccess?: () => void;
-}) => {
+};
+
+export default function ParentForm({ type, data, onSuccess }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState("");
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    reset,
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<Inputs>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -56,164 +63,134 @@ const ParentForm = ({
   const onSubmit = handleSubmit(async (formData) => {
     setServerError("");
 
-    const payload = {
-      username: formData.username.trim(),
-      name: formData.name.trim(),
-      surname: formData.surname.trim(),
-      email: formData.email?.trim() || undefined,
-      phone: formData.phone.trim(),
-      address: formData.address.trim(),
-    };
+    const payload = { ...formData };
 
-    console.log("PARENT PAYLOAD:", payload);
+    try {
+      const result =
+        type === "create"
+          ? await createParent(payload as any)
+          : await updateParent(data.id, payload as any);
 
-    const result =
-      type === "create"
-        ? await createParent(payload)
-        : await updateParent(data.id, payload);
+      if (!result.success) {
+        setServerError(result.error || "Failed to save parent.");
+        return;
+      }
 
-    console.log("PARENT DB RESPONSE:", result);
-
-    if (!result.success) {
-      setServerError(result.error || "Failed to save parent.");
-      return;
+      if (type === "create") reset();
+      router.refresh();
+      onSuccess?.();
+    } catch (err) {
+      console.error(err);
+      setServerError("Something went wrong. Please try again.");
     }
-
-    router.refresh();
-    onSuccess?.();
   });
 
-  const inputClass = (hasError?: boolean) =>
-    `w-full h-11 rounded-xl border bg-white px-3.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:ring-4 ${
-      hasError
-        ? "border-red-300 focus:border-red-500 focus:ring-red-500/10"
-        : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/10"
-    }`;
+  const busy = isSubmitting;
+  const nothingChanged = type === "update" && !isDirty;
 
   return (
-    <form className="flex flex-col gap-6" onSubmit={onSubmit}>
+    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900 tracking-tight">
+        <h2 className="text-xl font-semibold tracking-tight text-slate-900">
           {type === "create" ? "Add new parent" : "Update parent"}
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Data saves to Neon DB via Prisma.
+        </h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Fields marked with <span className="text-red-500">*</span> are required.
         </p>
       </div>
 
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-3">
-          Account
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Username *</label>
-            <input
-              type="text"
-              placeholder="parent_user"
-              {...register("username")}
-              className={inputClass(!!errors.username)}
-            />
-            {errors.username && (
-              <p className="text-xs text-red-500">{errors.username.message}</p>
-            )}
-          </div>
-        </div>
-      </div>
+      <Section title="Account">
+        <Field label="Username" required error={errors.username?.message} className="sm:col-span-2">
+          <input
+            {...register("username")}
+            autoComplete="off"
+            className={inputClass(!!errors.username)}
+            placeholder="e.g. parent_smith"
+          />
+        </Field>
+      </Section>
 
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-3">
-          Personal details
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">First name *</label>
-            <input
-              type="text"
-              placeholder="John"
-              {...register("name")}
-              className={inputClass(!!errors.name)}
-            />
-            {errors.name && (
-              <p className="text-xs text-red-500">{errors.name.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Surname *</label>
-            <input
-              type="text"
-              placeholder="Doe"
-              {...register("surname")}
-              className={inputClass(!!errors.surname)}
-            />
-            {errors.surname && (
-              <p className="text-xs text-red-500">{errors.surname.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Email</label>
-            <input
-              type="email"
-              placeholder="parent@example.com"
-              {...register("email")}
-              className={inputClass(!!errors.email)}
-            />
-            {errors.email && (
-              <p className="text-xs text-red-500">{errors.email.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Phone *</label>
-            <input
-              type="text"
-              placeholder="03001234567"
-              {...register("phone")}
-              className={inputClass(!!errors.phone)}
-            />
-            {errors.phone && (
-              <p className="text-xs text-red-500">{errors.phone.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5 sm:col-span-2">
-            <label className="text-sm font-medium text-slate-700">Address *</label>
-            <input
-              type="text"
-              placeholder="Street, City"
-              {...register("address")}
-              className={inputClass(!!errors.address)}
-            />
-            {errors.address && (
-              <p className="text-xs text-red-500">{errors.address.message}</p>
-            )}
-          </div>
-        </div>
-      </div>
+      <Section title="Personal info">
+        <Field label="First name" required error={errors.name?.message}>
+          <input {...register("name")} className={inputClass(!!errors.name)} />
+        </Field>
+        <Field label="Surname" required error={errors.surname?.message}>
+          <input {...register("surname")} className={inputClass(!!errors.surname)} />
+        </Field>
+        <Field label="Email address" error={errors.email?.message}>
+          <input type="email" {...register("email")} className={inputClass(!!errors.email)} />
+        </Field>
+        <Field label="Phone number" required error={errors.phone?.message}>
+          <input
+            type="tel"
+            {...register("phone")}
+            className={inputClass(!!errors.phone)}
+            placeholder="0300-1234567"
+          />
+        </Field>
+        <Field label="Home Address" required error={errors.address?.message} className="sm:col-span-2">
+          <input {...register("address")} className={inputClass(!!errors.address)} />
+        </Field>
+      </Section>
 
       {serverError && (
-        <div className="rounded-xl bg-red-50 border border-red-100 px-3.5 py-3 text-sm text-red-600">
+        <div
+          role="alert"
+          className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           {serverError}
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold shadow-sm shadow-indigo-600/20 transition-all"
-      >
-        {isSubmitting
-          ? type === "create"
-            ? "Creating..."
-            : "Updating..."
-          : type === "create"
-          ? "Create Parent"
-          : "Update Parent"}
-      </button>
+      <div className="border-t border-slate-100 pt-5">
+        <button
+          type="submit"
+          disabled={busy || nothingChanged}
+          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-teal-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-teal-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+          {isSubmitting ? "Saving..." : type === "create" ? "Create parent" : "Save changes"}
+        </button>
+      </div>
     </form>
   );
-};
+}
 
-export default ParentForm;
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-4 border-t border-slate-100 pt-5">
+      <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-400">{title}</h3>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
+    </section>
+  );
+}
+
+function Field({
+  label,
+  required,
+  error,
+  className = "",
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  error?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className={`block ${className}`}>
+      <span className="mb-1.5 block text-sm font-medium text-slate-700">
+        {label}
+        {required && <span className="text-red-500"> *</span>}
+      </span>
+      {children}
+      {error && (
+        <span role="alert" className="mt-1 block text-xs text-red-600">
+          {error}
+        </span>
+      )}
+    </label>
+  );
+}

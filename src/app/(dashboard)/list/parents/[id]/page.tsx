@@ -2,16 +2,21 @@ import Announcements from "@/components/Announcements";
 import FormModal from "@/components/FormModal";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { getAuthUser } from "@/lib/getRole";
+import { Mail, Phone, MapPin, Users } from "lucide-react";
 
-const SingleParentPage = async ({
+export default async function SingleParentPage({
   params,
 }: {
   params: { id: string };
-}) => {
+}) {
   const { role } = await getAuthUser();
+
+  if (role !== "admin") {
+    redirect("/");
+  }
 
   const parent = await prisma.parent.findUnique({
     where: { id: params.id },
@@ -25,124 +30,126 @@ const SingleParentPage = async ({
     },
   });
 
-  if (!parent) {
-    return notFound();
-  }
+  if (!parent) return notFound();
 
   return (
-    <div className="flex-1 p-4 flex flex-col gap-4 xl:flex-row">
+    <div className="m-4 flex-1 flex flex-col gap-6 md:m-6 xl:flex-row">
       {/* LEFT SIDE */}
-      <div className="w-full xl:w-2/3">
+      <div className="w-full xl:w-2/3 flex flex-col gap-6">
+        
         {/* TOP CARD */}
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="bg-lamaSky py-6 px-4 rounded-md flex-1 flex gap-4">
-            <div className="w-1/3 flex items-center justify-center">
-              <div className="w-28 h-20 bg-white/60 rounded-full flex items-center justify-center text-xl font-bold text-indigo-700">
-                {parent.name[0]}{parent.surname[0]}
-              </div>
+        <div className="flex flex-col lg:flex-row gap-6">
+          <div className="flex-1 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex gap-6">
+            <div className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-teal-50 text-3xl font-bold text-teal-700 sm:h-32 sm:w-32">
+              {parent.name[0]}{parent.surname[0]}
             </div>
-            <div className="w-2/3 flex flex-col justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <h1 className="text-xl font-semibold">
-                  {parent.name} {parent.surname}
-                </h1>
-                {role === "admin" && (
-                  <FormModal
-                    table="parent"
-                    type="update"
-                    data={parent}
-                    id={parent.id}
-                  />
-                )}
+            
+            <div className="flex flex-1 flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between gap-4">
+                  <h1 className="text-xl font-bold text-slate-900 truncate">
+                    {parent.name} {parent.surname}
+                  </h1>
+                  {role === "admin" && (
+                    <FormModal
+                      table="parent"
+                      type="update"
+                      data={JSON.parse(JSON.stringify(parent))}
+                      id={parent.id}
+                    />
+                  )}
+                </div>
+                <p className="mt-1 text-sm font-medium text-slate-500">
+                  @{parent.username}
+                </p>
               </div>
-              <p className="text-sm text-gray-500">
-                Username: @{parent.username}
-              </p>
-              <div className="flex items-center justify-between gap-2 flex-wrap text-xs font-medium">
-                <div className="w-full md:w-1/3 lg:w-full 2xl:w-1/3 flex items-center gap-2">
-                  <Image src="/mail.png" alt="mail" width={14} height={14} />
-                  <span>{parent.email || "-"}</span>
+
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm font-medium text-slate-600">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Mail className="h-4 w-4 shrink-0 text-teal-600" />
+                  <span className="truncate">{parent.email || "No email"}</span>
                 </div>
-                <div className="w-full md:w-1/3 lg:w-full 2xl:w-1/3 flex items-center gap-2">
-                  <Image src="/phone.png" alt="phone" width={14} height={14} />
-                  <span>{parent.phone}</span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <Phone className="h-4 w-4 shrink-0 text-teal-600" />
+                  <span className="truncate tabular-nums">{parent.phone}</span>
                 </div>
-                <div className="w-full md:w-1/3 lg:w-full 2xl:w-1/3 flex items-center gap-2">
-                  <Image src="/address.png" alt="address" width={14} height={14} />
-                  <span>{parent.address}</span>
+                <div className="flex items-center gap-2 min-w-0 sm:col-span-2">
+                  <MapPin className="h-4 w-4 shrink-0 text-teal-600" />
+                  <span className="truncate">{parent.address}</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* STAT CARD */}
-          <div className="flex-1 flex gap-4 justify-between flex-wrap">
-            <div className="bg-white p-4 rounded-md flex gap-4 w-full">
-              <Image
-                src="/singleClass.png"
-                alt="students"
-                width={24}
-                height={24}
-                className="w-6 h-6"
-              />
-              <div>
-                <h1 className="text-xl font-semibold">
+          <div className="flex flex-1 flex-wrap gap-4">
+            <div className="flex w-full min-w-[130px] flex-1 items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
+                <Users className="h-6 w-6" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="truncate text-2xl font-bold tabular-nums text-slate-900">
                   {parent.students.length}
-                </h1>
-                <span className="text-sm text-gray-400">Linked Students (Children)</span>
+                </h2>
+                <p className="truncate text-xs font-medium text-slate-500 uppercase tracking-widest mt-0.5">
+                  Linked Children
+                </p>
               </div>
             </div>
           </div>
         </div>
 
         {/* LINKED STUDENTS LIST */}
-        <div className="mt-4 bg-white rounded-md p-4">
-          <h1 className="text-xl font-semibold mb-4">Children List</h1>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-4 text-lg font-semibold text-slate-900">Children List</h2>
           <div className="flex flex-col gap-3">
             {parent.students.map((student) => (
               <div
                 key={student.id}
-                className="p-3 border rounded-xl flex items-center justify-between hover:bg-slate-50 transition-colors"
+                className="flex items-center justify-between rounded-xl border border-slate-100 p-4 transition-colors hover:bg-slate-50"
               >
-                <div className="flex items-center gap-3">
-                  <Image
-                    src={student.img || "/noAvatar.png"}
-                    alt={student.name}
-                    width={40}
-                    height={40}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                  <div>
-                    <h2 className="text-sm font-semibold">
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white">
+                     <Image
+                        src={student.img || "/noAvatar.png"}
+                        alt={student.name}
+                        fill
+                        sizes="40px"
+                        unoptimized
+                        className="object-cover"
+                      />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-sm font-semibold text-slate-900">
                       {student.name} {student.surname}
-                    </h2>
-                    <p className="text-xs text-gray-500">
-                      Class: {student.class.name} | Grade: {student.grade.level}th
+                    </h3>
+                    <p className="truncate text-xs text-slate-500 mt-0.5">
+                      Class: {student.class?.name || "-"} <span className="mx-1 text-slate-300">•</span> Grade: {student.grade?.level || "-"}
                     </p>
                   </div>
                 </div>
                 <Link
                   href={`/list/students/${student.id}`}
-                  className="text-xs text-indigo-600 hover:underline font-medium"
+                  className="shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 transition-colors hover:bg-slate-50"
                 >
-                  View Profile →
+                  View Profile
                 </Link>
               </div>
             ))}
 
             {parent.students.length === 0 && (
-              <p className="text-sm text-gray-400">No students assigned to this parent yet.</p>
+              <p className="text-sm text-slate-500 italic py-4 text-center">
+                No students currently linked to this parent.
+              </p>
             )}
           </div>
         </div>
       </div>
 
       {/* RIGHT SIDE */}
-      <div className="w-full xl:w-1/3 flex flex-col gap-4">
+      <div className="w-full xl:w-1/3 flex flex-col gap-6">
         <Announcements />
       </div>
     </div>
   );
-};
-
-export default SingleParentPage;
+}

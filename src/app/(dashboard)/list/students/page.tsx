@@ -11,6 +11,7 @@ import type { StudentWithRelations } from "@/types";
 import FilterButton from "@/components/FilterButton";
 import SortButton from "@/components/SortButton";
 import ViewButton from "@/components/ViewButton";
+import UserRowActions from "@/components/Userrowactions";
 
 const ITEM_PER_PAGE = 10;
 
@@ -117,9 +118,10 @@ export default async function StudentsListPage({
       {role === "admin" && (
         <td>
           <div className="flex items-center justify-end gap-2">
-            <ViewButton href={`/list/students/${item.id}`} />
-            <FormModal table="student" type="update" data={item} id={item.id} />
-            <FormModal table="student" type="delete" id={item.id} />
+          
+       
+            <UserRowActions table="student" item={item} />
+           
           </div>
         </td>
       )}

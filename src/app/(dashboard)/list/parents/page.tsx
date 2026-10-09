@@ -2,12 +2,14 @@ import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
 import Pagination from "@/components/Pagination";
 import FormModal from "@/components/FormModal";
-import ViewButton from "@/components/ViewButton";
+
 import SortButton from "@/components/SortButton";
 import ClearFiltersButton from "@/components/ClearFiltersButton";
 import prisma from "@/lib/prisma";
 import { getAuthUser } from "@/lib/getRole";
 import { Parent, Student } from "@prisma/client";
+import UserRowActions from "@/components/Userrowactions";
+import ViewButton from "@/components/ViewButton";
 
 type ParentListType = Parent & { students: Student[] };
 const ITEM_PER_PAGE = 10;
@@ -115,14 +117,9 @@ export default async function ParentsListPage({
         {role === "admin" && (
           <td>
             <div className="flex items-center justify-end gap-2">
-              <ViewButton href={`/list/parents/${item.id}`} />
-              <FormModal
-                table="parent"
-                type="update"
-                data={serializedItem}
-                id={item.id}
-              />
-              <FormModal table="parent" type="delete" id={item.id} />
+             
+              <UserRowActions table="parent" item={item} />
+             
             </div>
           </td>
         )}

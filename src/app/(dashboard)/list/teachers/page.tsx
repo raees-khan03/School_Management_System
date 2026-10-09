@@ -5,12 +5,13 @@ import FormModal from "@/components/FormModal";
 import FilterButton from "@/components/FilterButton";
 import SortButton from "@/components/SortButton";
 import ClearFiltersButton from "@/components/ClearFiltersButton";
-import ViewButton from "@/components/ViewButton";
+
 import Image from "next/image";
 import prisma from "@/lib/prisma";
 import { getAuthUser } from "@/lib/getRole";
 import type { TeacherWithRelations } from "@/types";
 import { Column } from "@/components/Table";
+import UserRowActions from "@/components/Userrowactions";
 
 const ITEM_PER_PAGE = 10;
 
@@ -126,7 +127,7 @@ export default async function TeachersListPage({
           {item.classes.length === 0 && <span className="text-xs text-slate-400">-</span>}
         </div>
       </td>
-      
+
       {role === "admin" && (
         <>
           <td className="hidden whitespace-nowrap tabular-nums md:table-cell">
@@ -136,11 +137,8 @@ export default async function TeachersListPage({
             <span className="block truncate">{item.address}</span>
           </td>
           <td>
-            <div className="flex items-center justify-end gap-2">
-              <ViewButton href={`/list/teachers/${item.id}`} />
-              <FormModal table="teacher" type="update" data={item} id={item.id} />
-              <FormModal table="teacher" type="delete" id={item.id} />
-            </div>
+            {/* View + Reset password + Edit + Delete, sab ek component mein */}
+            <UserRowActions table="teacher" item={item} />
           </td>
         </>
       )}

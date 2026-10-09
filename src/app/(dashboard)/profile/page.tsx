@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { getAuthUser } from "@/lib/getRole";
+import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -89,7 +90,23 @@ export default async function ProfilePage() {
       extraStats = [{ label: "Children", value: user.students.length, icon: Users }];
     }
   } else if (role === "admin") {
-    user = await prisma.admin.findUnique({ where: { id: userId } });
+    // Admin table mein aksar sirf id/username hota hai, isliye naam, photo aur
+    // email Clerk se lete hain. DB mein jo fields hon wo bhi use hote hain.
+    const [dbAdmin, clerkUser] = await Promise.all([
+      prisma.admin.findUnique({ where: { id: userId } }) as Promise<any>,
+      currentUser(),
+    ]);
+
+    user = {
+      ...(dbAdmin || {}),
+      id: userId,
+      username: dbAdmin?.username || clerkUser?.username || "admin",
+      name: dbAdmin?.name || clerkUser?.firstName || "",
+      surname: dbAdmin?.surname || clerkUser?.lastName || "",
+      img: dbAdmin?.img || clerkUser?.imageUrl || null,
+      email: dbAdmin?.email || clerkUser?.primaryEmailAddress?.emailAddress || null,
+      createdAt: dbAdmin?.createdAt || (clerkUser?.createdAt ? new Date(clerkUser.createdAt) : null),
+    };
 
     const [teachers, students, parents, classes] = await Promise.all([
       prisma.teacher.count(),
@@ -181,6 +198,7 @@ export default async function ProfilePage() {
                 alt={fullName}
                 fill
                 sizes="112px"
+                unoptimized
                 className="object-cover"
               />
             </div>
@@ -320,6 +338,7 @@ export default async function ProfilePage() {
                         alt={s.name}
                         width={40}
                         height={40}
+                        unoptimized
                         className="h-10 w-10 shrink-0 rounded-full object-cover"
                       />
                       <div className="min-w-0 flex-1">

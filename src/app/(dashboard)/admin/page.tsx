@@ -1,6 +1,6 @@
 import Announcements from "@/components/Announcements";
 import AttendanceChart from "@/components/AttandanceChart";
-// agar file AttandanceChart hai to wahi naam use karein
+
 import CountCharts from "@/components/CountCharts";
 import EventCalendar from "@/components/EventCalendar";
 import FinanceChart from "@/components/FinanceChart";
@@ -8,26 +8,51 @@ import UserCard from "@/components/UserCard";
 import prisma from "@/lib/prisma";
 
 export default async function AdminPage() {
-  // ===== REAL DATA FROM NEON =====
-  const [studentsCount, teachersCount, parentsCount, adminsCount, boysCount, girlsCount] =
-    await Promise.all([
-      prisma.student.count(),
-      prisma.teacher.count(),
-      prisma.parent.count(),
-      prisma.admin.count(),
-      prisma.student.count({ where: { sex: "MALE" } }),
-      prisma.student.count({ where: { sex: "FEMALE" } }),
-    ]);
+  // 1. FETCH ALL DATA IN PARALLEL
+  const [
+    studentsCount,
+    teachersCount,
+    parentsCount,
+    adminsCount,
+    boysCount,
+    girlsCount,
+    attendanceRaw,
+    events,
+    announcements,
+    transactionsRaw, 
+  ] = await Promise.all([
+    prisma.student.count(),
+    prisma.teacher.count(),
+    prisma.parent.count(),
+    prisma.admin.count(),
+    prisma.student.count({ where: { sex: "MALE" } }),
+    prisma.student.count({ where: { sex: "FEMALE" } }),
+    // Last 7 days attendance
+    prisma.attendance.findMany({
+      where: { date: { gte: new Date(new Date().setDate(new Date().getDate() - 7)) } },
+      select: { date: true, present: true },
+    }),
+    // Upcoming 5 Events
+    prisma.event.findMany({ 
+      take: 5, 
+      orderBy: { startTime: "asc" }, 
+      where: { startTime: { gte: new Date() } }, 
+      include: { class: true } 
+    }),
+    // Latest 3 Announcements
+    prisma.announcement.findMany({ 
+      take: 3, 
+      orderBy: { date: "desc" }, 
+      include: { class: true } 
+    }),
+    // Current Year Transactions
+    prisma.transaction.findMany({
+      where: { date: { gte: new Date(new Date().getFullYear(), 0, 1) } },
+      select: { amount: true, type: true, date: true }
+    })
+  ]);
 
-  // Attendance last 7 days
-  const weekAgo = new Date();
-  weekAgo.setDate(weekAgo.getDate() - 7);
-
-  const attendanceRaw = await prisma.attendance.findMany({
-    where: { date: { gte: weekAgo } },
-    select: { date: true, present: true },
-  });
-
+  // 2. FORMAT ATTENDANCE DATA
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const attendanceMap: Record<string, { present: number; absent: number }> = {
     Mon: { present: 0, absent: 0 },
@@ -52,53 +77,42 @@ export default async function AdminPage() {
     absent: attendanceMap[name].absent,
   }));
 
-  // Events — upcoming pehle, warna latest 5
-  let events = await prisma.event.findMany({
-    where: { startTime: { gte: new Date() } },
-    orderBy: { startTime: "asc" },
-    take: 5,
-    include: { class: true },
+  // 3. FORMAT FINANCE DATA
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const financeMap: Record<string, { income: number; expense: number }> = {};
+  
+  months.forEach(m => (financeMap[m] = { income: 0, expense: 0 }));
+
+  transactionsRaw.forEach((t) => {
+    const monthName = months[t.date.getMonth()]; 
+    if (t.type === "INCOME") {
+      financeMap[monthName].income += t.amount;
+    } else {
+      financeMap[monthName].expense += t.amount;
+    }
   });
 
-  if (events.length === 0) {
-    events = await prisma.event.findMany({
-      orderBy: { startTime: "desc" },
-      take: 5,
-      include: { class: true },
-    });
-  }
+  const financeData = months.map((name) => ({
+    name,
+    income: financeMap[name].income,
+    expense: financeMap[name].expense,
+  }));
 
-  const announcements = await prisma.announcement.findMany({
-    orderBy: { date: "desc" },
-    take: 3,
-    include: { class: true },
-  });
+  // 4. FORMAT GENDER PERCENTAGES
+  const totalStudents = boysCount + girlsCount || 1;
+  const boysPercent = Math.round((boysCount / totalStudents) * 100);
+  const girlsPercent = Math.round((girlsCount / totalStudents) * 100);
 
-  // Client components ke liye dates serialize
+  // 5. SERIALIZE DATES FOR CLIENT COMPONENTS
   const safeEvents = JSON.parse(JSON.stringify(events));
   const safeAnnouncements = JSON.parse(JSON.stringify(announcements));
 
-  const totalGender = boysCount + girlsCount;
-  const boysPercent = totalGender ? Math.round((boysCount / totalGender) * 100) : 0;
-  const girlsPercent = totalGender ? Math.round((girlsCount / totalGender) * 100) : 0;
-
-  console.log("DASHBOARD COUNTS:", {
-    studentsCount,
-    teachersCount,
-    parentsCount,
-    adminsCount,
-    boysCount,
-    girlsCount,
-    events: events.length,
-    announcements: announcements.length,
-    attendanceRows: attendanceRaw.length,
-  });
-
   return (
-    <div className="p-4 flex gap-4 flex-col md:flex-row">
-      {/* LEFT */}
-      <div className="w-full md:w-2/3 space-y-4">
-        {/* CARDS — REAL COUNTS */}
+    <div className="w-full p-4 md:p-6 flex flex-col lg:flex-row gap-6">
+      {/* LEFT CONTENT AREA */}
+      <div className="w-full lg:w-2/3 flex flex-col gap-6">
+        
+        {/* TOP ROW: STAT CARDS */}
         <div className="flex gap-4 justify-between flex-wrap">
           <UserCard type="students" count={studentsCount} />
           <UserCard type="teachers" count={teachersCount} />
@@ -106,8 +120,9 @@ export default async function AdminPage() {
           <UserCard type="staffs" count={adminsCount} />
         </div>
 
-        <div className="flex gap-4 flex-col md:flex-row">
-          <div className="w-full md:w-1/3 h-[450px]">
+        {/* MIDDLE ROW: GENDER & ATTENDANCE CHARTS */}
+        <div className="flex gap-6 flex-col md:flex-row h-auto md:h-[400px]">
+          <div className="w-full md:w-1/3 h-[400px] md:h-full">
             <CountCharts
               boys={boysCount}
               girls={girlsCount}
@@ -115,18 +130,19 @@ export default async function AdminPage() {
               girlsPercent={girlsPercent}
             />
           </div>
-          <div className="w-full md:w-2/3 h-[450px]">
+          <div className="w-full md:w-2/3 h-[400px] md:h-full">
             <AttendanceChart data={attendanceData} />
           </div>
         </div>
 
-        <div className="w-full h-[500px]">
-          <FinanceChart />
+        {/* BOTTOM ROW: FINANCE CHART */}
+        <div className="w-full h-[450px]">
+          <FinanceChart data={financeData} /> 
         </div>
       </div>
 
-      {/* RIGHT */}
-      <div className="w-full md:w-1/3 flex flex-col gap-8">
+      {/* RIGHT SIDEBAR AREA */}
+      <div className="w-full lg:w-1/3 flex flex-col gap-6">
         <EventCalendar events={safeEvents} />
         <Announcements announcements={safeAnnouncements} />
       </div>

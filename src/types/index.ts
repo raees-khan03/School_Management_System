@@ -68,3 +68,4 @@ export type EventWithRelations = Prisma.EventGetPayload<{
 export type AnnouncementWithRelations = Prisma.AnnouncementGetPayload<{
   include: { class: true };
 }>;
+export type TableType = | "teacher" | "student" | ... | "finance";

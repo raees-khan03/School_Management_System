@@ -244,3 +244,41 @@ model Message {
   
   createdAt      DateTime     @default(now())
 }
+
+
+// ==================== FINANCE MODEL ====================
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+model Transaction {
+  id          Int             @id @default(autoincrement())
+  title       String          // e.g. "Electricity Bill", "Student Fee"
+  amount      Float
+  type        TransactionType // INCOME ya EXPENSE
+  category    String          // e.g. "Utility", "Salary", "Fee"
+  date        DateTime        @default(now())
+  description String?
+}
+
+
+
+
+// ==================== IN-APP NOTIFICATIONS & SETTINGS ====================
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  title     String
+  message   String
+  userId    String   // Recipient's Clerk / DB User ID (Student / Parent / Teacher)
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model SystemSetting {
+  id                      Int     @id @default(1)
+  enableFeeNotifications Boolean @default(true) // Admin Toggle 1
+  enableFeeReminders     Boolean @default(true) // Admin Toggle 2
+  reminderDayOfMonth     Int     @default(5)
+}

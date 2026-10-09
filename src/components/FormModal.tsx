@@ -18,6 +18,7 @@ import { deleteResult } from "@/lib/actions/result";
 import { deleteEvent } from "@/lib/actions/event";
 import { deleteAnnouncement } from "@/lib/actions/announcement";
 import { deleteAttendance } from "@/lib/actions/attendance";
+import { deleteTransaction } from "@/lib/actions/finance"; // ✅ Added Finance Action
 
 const Loading = () => <p className="p-4 text-center text-sm text-slate-500">Loading form...</p>;
 
@@ -34,6 +35,7 @@ const ResultForm = dynamic(() => import("./forms/ResultForm"), { loading: Loadin
 const EventForm = dynamic(() => import("./forms/EventForm"), { loading: Loading, ssr: false });
 const AnnouncementForm = dynamic(() => import("./forms/AnnouncementForm"), { loading: Loading, ssr: false });
 const AttendanceForm = dynamic(() => import("./forms/AttendanceForm"), { loading: Loading, ssr: false });
+const FinanceForm = dynamic(() => import("./forms/FinanceForm"), { loading: Loading, ssr: false }); // ✅ Added Finance Form
 
 export type TableType =
   | "teacher"
@@ -47,7 +49,8 @@ export type TableType =
   | "result"
   | "event"
   | "announcement"
-  | "attendance";
+  | "attendance"
+  | "finance"; // ✅ Added 'finance' to TableType
 
 type DeleteResult = { success: boolean; error?: string };
 
@@ -64,6 +67,7 @@ const deleteActionMap: Record<TableType, (id: string) => Promise<DeleteResult>> 
   event: deleteEvent as any,
   announcement: deleteAnnouncement as any,
   attendance: deleteAttendance as any,
+  finance: deleteTransaction as any, // ✅ Added Finance Delete Action
 };
 
 type FormRenderer = (
@@ -85,6 +89,7 @@ const forms: Record<TableType, FormRenderer> = {
   event: (type, data, onSuccess) => <EventForm type={type} data={data} onSuccess={onSuccess} />,
   announcement: (type, data, onSuccess) => <AnnouncementForm type={type} data={data} onSuccess={onSuccess} />,
   attendance: (type, data, onSuccess) => <AttendanceForm type={type} data={data} onSuccess={onSuccess} />,
+  finance: (type, data, onSuccess) => <FinanceForm type={type} data={data} onSuccess={onSuccess} />, // ✅ Added Finance Form Renderer
 };
 
 export type FormModalProps = {
@@ -121,7 +126,6 @@ export default function FormModal({ table, type, data, id }: FormModalProps) {
   const { Icon, className } = triggerStyles[type];
   const triggerLabel = `${type === "create" ? "Add" : type === "update" ? "Edit" : "Delete"} ${table}`;
 
-  // ESC se band + background scroll lock
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -164,8 +168,6 @@ export default function FormModal({ table, type, data, id }: FormModalProps) {
     router.refresh();
   };
 
-  // NOTE: function ki tarah call hota hai (<FormContent /> nahi), warna har re-render
-  // par form dobara mount hota tha aur typed data reset ho jata tha.
   const renderContent = () => {
     if (type === "delete" && id !== undefined) {
       return (

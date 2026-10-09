@@ -1,33 +1,43 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Loader2, RefreshCw, Trash2, UploadCloud, User } from "lucide-react";
+import {
+  AlertCircle,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Loader2,
+  RefreshCw,
+  Trash2,
+  UploadCloud,
+  User,
+} from "lucide-react";
 import { createStudent, updateStudent } from "@/lib/actions/student";
 import { getStudentFormData } from "@/lib/actions/shared";
 import { useUploadThing } from "@/lib/uploadthing";
 
 /* ---------------- Schema ----------------
-   z.coerce hata diya: coerce ki wajah se input aur output type alag ho jati thi
-   (input = unknown) aur useForm mein type error aata tha.
-   Ab select ki values string rehti hain, aur submit par Number() hota hai.
-   Is liye z.input aur z.infer dono same type dete hain.
+   z.coerce nahi use kiya: select ki values string rehti hain aur submit par
+   Number() hota hai, taake z.input aur z.infer same type dein.
 */
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const MAX_IMAGE_MB = 2;
 const ALLOWED_IMAGES = ["image/jpeg", "image/png", "image/webp"];
+const MIN_PASSWORD = 16;
+const MAX_PASSWORD = 72; // Clerk ki upper limit
 
-const schema = z.object({
+const baseSchema = z.object({
   username: z
     .string()
     .trim()
     .min(3, "Username must be at least 3 characters")
     .max(30, "Username must be at most 30 characters")
-    .regex(/^[a-zA-Z0-9._-]+$/, "Only letters, numbers, dot, dash and underscore"),
+    .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, - or _"),
   name: z.string().trim().min(1, "First name is required"),
   surname: z.string().trim().min(1, "Surname is required"),
   email: z.string().trim().email("Enter a valid email").or(z.literal("")),
@@ -47,9 +57,46 @@ const schema = z.object({
   parentId: z.string().min(1, "Select a parent"),
   classId: z.string().min(1, "Select a class"),
   gradeId: z.string().min(1, "Select a grade"),
+  password: z.string(),
+  confirmPassword: z.string(),
 });
 
-type Inputs = z.input<typeof schema>;
+// create mein password zaroori, update mein optional (khali = purana rahega)
+const makeSchema = (type: "create" | "update") =>
+  baseSchema.superRefine((v, ctx) => {
+    if (type === "create" && !v.password) {
+      ctx.addIssue({ code: "custom", path: ["password"], message: "Password is required" });
+    }
+    if (v.password && v.password.length < MIN_PASSWORD) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["password"],
+        message: `Password must be at least ${MIN_PASSWORD} characters`,
+      });
+    }
+    if (v.password.length > MAX_PASSWORD) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["password"],
+        message: `Maximum ${MAX_PASSWORD} characters`,
+      });
+    }
+    if (v.password && v.password !== v.confirmPassword) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["confirmPassword"],
+        message: "Passwords do not match",
+      });
+    }
+  });
+
+type Inputs = z.input<typeof baseSchema>;
+
+const generatePassword = () => {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$";
+  const bytes = crypto.getRandomValues(new Uint32Array(MIN_PASSWORD));
+  return Array.from(bytes, (b) => chars[b % chars.length]).join("");
+};
 
 /* ---------------- Styles ---------------- */
 const inputClass = (err?: boolean) =>
@@ -87,14 +134,18 @@ export default function StudentForm({ type, data, onSuccess }: Props) {
   const [loadingRelated, setLoadingRelated] = useState(true);
   const [relatedError, setRelatedError] = useState(false);
 
+  const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState("");
 
   const { startUpload } = useUploadThing("teacherImage");
+
+  const schema = useMemo(() => makeSchema(type), [type]);
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<Inputs>({
     resolver: zodResolver(schema),
@@ -111,6 +162,8 @@ export default function StudentForm({ type, data, onSuccess }: Props) {
       parentId: data?.parentId || "",
       classId: data?.classId ? String(data.classId) : "",
       gradeId: data?.gradeId ? String(data.gradeId) : "",
+      password: "",
+      confirmPassword: "",
     },
   });
 
@@ -136,6 +189,13 @@ export default function StudentForm({ type, data, onSuccess }: Props) {
       if (blobRef.current) URL.revokeObjectURL(blobRef.current);
     };
   }, []);
+
+  const handleGenerate = () => {
+    const pw = generatePassword();
+    setValue("password", pw, { shouldDirty: true, shouldValidate: true });
+    setValue("confirmPassword", pw, { shouldDirty: true, shouldValidate: true });
+    setShowPassword(true); // taake admin dekh kar student ko bata sake
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -190,10 +250,12 @@ export default function StudentForm({ type, data, onSuccess }: Props) {
       setUploading(false);
     }
 
+    const { confirmPassword, password, ...rest } = formData;
     const payload = {
-      ...formData,
-      classId: Number(formData.classId),
-      gradeId: Number(formData.gradeId),
+      ...rest,
+      classId: Number(rest.classId),
+      gradeId: Number(rest.gradeId),
+      password: password || undefined,
       img: imageUrl || undefined,
     };
 
@@ -209,6 +271,10 @@ export default function StudentForm({ type, data, onSuccess }: Props) {
       }
 
       if (type === "create") reset();
+      else {
+        setValue("password", "");
+        setValue("confirmPassword", "");
+      }
       router.refresh();
       onSuccess?.();
     } catch (err) {
@@ -306,9 +372,51 @@ export default function StudentForm({ type, data, onSuccess }: Props) {
             {...register("username")}
             autoComplete="off"
             className={inputClass(!!errors.username)}
-            placeholder="e.g. ali.khan"
+            placeholder="e.g. ali_khan"
           />
         </Field>
+
+        <Field
+          label={type === "create" ? "Password" : "New password (optional)"}
+          required={type === "create"}
+          error={errors.password?.message}
+        >
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+              {...register("password")}
+              className={`${inputClass(!!errors.password)} pr-10`}
+              placeholder={type === "update" ? "Leave blank to keep current" : `Min ${MIN_PASSWORD} characters`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((s) => !s)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+        </Field>
+
+        <Field label="Confirm password" error={errors.confirmPassword?.message}>
+          <input
+            type={showPassword ? "text" : "password"}
+            autoComplete="new-password"
+            {...register("confirmPassword")}
+            className={inputClass(!!errors.confirmPassword)}
+          />
+        </Field>
+
+        <button
+          type="button"
+          onClick={handleGenerate}
+          className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-teal-700 hover:underline sm:col-span-2"
+        >
+          <KeyRound className="h-4 w-4" />
+          Generate strong password
+        </button>
       </Section>
 
       {/* Personal */}

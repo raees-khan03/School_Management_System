@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
@@ -46,13 +45,14 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Top progress bar jab navigation pending ho */}
+      {/* Top progress bar when navigation is pending */}
       {isPending && (
-        <div className="fixed left-0 right-0 top-0 z-[100] h-0.5 overflow-hidden bg-teal-100">
+        <div className="fixed inset-x-0 top-0 z-[100] h-0.5 overflow-hidden bg-teal-100/20">
           <div className="h-full w-1/3 animate-[slide_1s_ease-in-out_infinite] bg-teal-500" />
         </div>
       )}
 
+      {/* Mobile overlay */}
       <div
         onClick={onMobileClose}
         aria-hidden
@@ -82,10 +82,9 @@ export default function Sidebar({
           <button
             type="button"
             onClick={() => go("/")}
-            className="flex items-center gap-3 text-left"
+            className="flex items-center gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 rounded-xl"
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-cyan-600 shadow-lg shadow-teal-500/20">
-              {/* Changed icon to a Campus/Building style */}
               <Building2 className="h-5 w-5 text-white" />
             </span>
             <span className={cn("text-lg font-bold tracking-tight", collapsed && "md:hidden")}>
@@ -105,7 +104,7 @@ export default function Sidebar({
         <button
           onClick={onToggle}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="absolute -right-3 top-[4.5rem] z-10 hidden h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-md transition hover:bg-gray-50 md:flex"
+          className="absolute -right-3 top-[4.5rem] z-10 hidden h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-md transition hover:bg-slate-50 md:flex"
         >
           <ChevronLeft
             className={cn("h-3.5 w-3.5 transition-transform", collapsed && "rotate-180")}
@@ -115,9 +114,7 @@ export default function Sidebar({
         {/* Navigation Menu */}
         <nav className="flex-1 space-y-6 overflow-y-auto overflow-x-hidden px-3 py-5">
           {menuItems.map((section) => {
-            const items = section.items.filter((i) =>
-              i.visible.includes(currentRole)
-            );
+            const items = section.items.filter((i) => i.visible.includes(currentRole));
             if (items.length === 0) return null;
 
             return (
@@ -133,11 +130,8 @@ export default function Sidebar({
                 <ul className="space-y-1">
                   {items.map((item) => {
                     const active = isActive(item.href);
-                    // Role home: Dashboard href="/" ko role route pe bhejo
-                    const href =
-                      item.href === "/" && currentRole
-                        ? `/${currentRole}`
-                        : item.href;
+                    const href = item.href === "/" && currentRole ? `/${currentRole}` : item.href;
+                    const Icon = item.icon; // Extracted Lucide component
 
                     return (
                       <li key={item.label}>
@@ -146,7 +140,7 @@ export default function Sidebar({
                           title={collapsed ? item.label : undefined}
                           onClick={() => go(href)}
                           className={cn(
-                            "group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all",
+                            "group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50",
                             collapsed && "md:justify-center md:px-0",
                             active
                               ? "bg-white/10 text-white shadow-[inset_0_0_0_1px_rgb(255_255_255/0.08)]"
@@ -156,29 +150,22 @@ export default function Sidebar({
                           {active && (
                             <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-teal-400 shadow-[0_0_12px_rgb(45_212_191)]" />
                           )}
+                          
                           <span className="flex h-5 w-5 shrink-0 items-center justify-center">
-                            <Image
-                              src={item.icon}
-                              alt=""
-                              width={18}
-                              height={18}
+                            {/* RENDER LUCIDE ICON INSTEAD OF NEXT/IMAGE */}
+                            <Icon 
                               className={cn(
-                                "brightness-0 invert transition-opacity",
-                                active
-                                  ? "opacity-100"
-                                  : "opacity-60 group-hover:opacity-100"
-                              )}
+                                "h-4.5 w-4.5 transition-colors",
+                                active ? "text-teal-400" : "text-slate-400 group-hover:text-slate-200"
+                              )} 
                             />
                           </span>
-                          <span
-                            className={cn(
-                              "flex-1 truncate",
-                              collapsed && "md:hidden"
-                            )}
-                          >
+                          
+                          <span className={cn("flex-1 truncate", collapsed && "md:hidden")}>
                             {item.label}
                           </span>
-                          {isPending && active === false && (
+                          
+                          {isPending && !active && (
                             <Loader2
                               className={cn(
                                 "h-3.5 w-3.5 animate-spin text-teal-300 opacity-0",
@@ -197,22 +184,10 @@ export default function Sidebar({
         </nav>
       </aside>
 
-      {/* Optional: dim main content while loading */}
-      {isPending && (
-        <div
-          className="pointer-events-none fixed inset-0 z-30 bg-white/20 md:left-[264px]"
-          aria-hidden
-        />
-      )}
-
       <style jsx global>{`
         @keyframes slide {
-          0% {
-            transform: translateX(-100%);
-          }
-          100% {
-            transform: translateX(400%);
-          }
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(400%); }
         }
       `}</style>
     </>

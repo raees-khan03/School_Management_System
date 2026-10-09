@@ -1,110 +1,69 @@
+import {
+  LayoutDashboard,
+  Presentation,
+  GraduationCap,
+  Users,
+  BookOpen,
+  Library,
+  ClipboardList,
+  FileText,
+  PenTool,
+  Award,
+  CalendarCheck,
+  Wallet,
+  Receipt, // 👈 1. Receipt Icon Import Hua
+  CalendarDays,
+  MessageSquare,
+  Megaphone,
+  User,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
+
 export type Role = "admin" | "teacher" | "student" | "parent";
 
-export const menuItems = [
+export type MenuItem = {
+  icon: LucideIcon;
+  label: string;
+  href: string;
+  visible: Role[];
+};
+
+export type MenuSection = {
+  title: string;
+  items: MenuItem[];
+};
+
+export const menuItems: MenuSection[] = [
   {
     title: "MAIN MENU",
     items: [
-      {
-        icon: "/home.png",
-        label: "Dashboard",
-        href: "/",
-        visible: ["admin", "teacher", "student", "parent"],
-      },
-      {
-        icon: "/teacher.png",
-        label: "Teachers",
-        href: "/list/teachers",
-        visible: ["admin"], // Change to ["admin", "teacher"] if you want a Staff Directory
-      },
-      {
-        icon: "/student.png",
-        label: "Students",
-        href: "/list/students",
-        visible: ["admin", "teacher"],
-      },
-      {
-        icon: "/parent.png",
-        label: "Parents",
-        href: "/list/parents",
-        visible: ["admin"], // Hidden from Teacher to protect parent privacy
-      },
-      {
-        icon: "/subject.png",
-        label: "Subjects",
-        href: "/list/subjects",
-        visible: ["admin"],
-      },
-      {
-        icon: "/class.png",
-        label: "Classes",
-        href: "/list/classes",
-        visible: ["admin", "teacher"],
-      },
-      {
-        icon: "/lesson.png",
-        label: "Lessons",
-        href: "/list/lessons",
-        visible: ["admin", "teacher"],
-      },
-      {
-        icon: "/exam.png",
-        label: "Exams",
-        href: "/list/exams",
-        visible: ["admin", "teacher", "student", "parent"],
-      },
-      {
-        icon: "/assignment.png",
-        label: "Assignments",
-        href: "/list/assignments",
-        visible: ["admin", "teacher", "student", "parent"],
-      },
-      {
-        icon: "/result.png",
-        label: "Results",
-        href: "/list/results",
-        visible: ["admin", "teacher", "student", "parent"],
-      },
-      {
-        icon: "/attendance.png",
-        label: "Attendance",
-        href: "/list/attendance",
-        visible: ["admin", "teacher", "student", "parent"],
-      },
-      {
-        icon: "/calendar.png",
-        label: "Events",
-        href: "/list/events",
-        visible: ["admin", "teacher", "student", "parent"],
-      },
-      {
-        icon: "/message.png",
-        label: "Messages",
-        href: "/list/messages",
-        visible: ["admin", "teacher", "student", "parent"],
-      },
-      {
-        icon: "/announcement.png",
-        label: "Announcements",
-        href: "/list/announcements",
-        visible: ["admin", "teacher", "student", "parent"],
-      },
+      { icon: LayoutDashboard, label: "Dashboard", href: "/", visible: ["admin", "teacher", "student", "parent"] },
+      { icon: Presentation, label: "Teachers", href: "/list/teachers", visible: ["admin"] },
+      { icon: GraduationCap, label: "Students", href: "/list/students", visible: ["admin", "teacher"] },
+      { icon: Users, label: "Parents", href: "/list/parents", visible: ["admin"] },
+      { icon: BookOpen, label: "Subjects", href: "/list/subjects", visible: ["admin"] },
+      { icon: Library, label: "Classes", href: "/list/classes", visible: ["admin", "teacher"] },
+      { icon: ClipboardList, label: "Lessons", href: "/list/lessons", visible: ["admin", "teacher"] },
+      { icon: FileText, label: "Exams", href: "/list/exams", visible: ["admin", "teacher", "student", "parent"] },
+      { icon: PenTool, label: "Assignments", href: "/list/assignments", visible: ["admin", "teacher", "student", "parent"] },
+      { icon: Award, label: "Results", href: "/list/results", visible: ["admin", "teacher", "student", "parent"] },
+      { icon: CalendarCheck, label: "Attendance", href: "/list/attendance", visible: ["admin", "teacher", "student", "parent"] },
+      { icon: Wallet, label: "Finance", href: "/list/finance", visible: ["admin"] },
+      
+      // 👈 2. Collect Fees Ka Naya Option Add Ho Gaya (Sirf Admin Ko Dikhega)
+      { icon: Receipt, label: "Collect Fees", href: "/fees", visible: ["admin"] },
+      
+      { icon: CalendarDays, label: "Events", href: "/list/events", visible: ["admin", "teacher", "student", "parent"] },
+      { icon: MessageSquare, label: "Messages", href: "/list/messages", visible: ["admin", "teacher", "student", "parent"] },
+      { icon: Megaphone, label: "Announcements", href: "/list/announcements", visible: ["admin", "teacher", "student", "parent"] },
     ],
   },
   {
     title: "SETTINGS",
     items: [
-      {
-        icon: "/profile.png",
-        label: "Profile",
-        href: "/profile",
-        visible: ["admin", "teacher", "student", "parent"],
-      },
-      {
-        icon: "/setting.png",
-        label: "Settings",
-        href: "/settings",
-        visible: ["admin", "teacher", "student", "parent"],
-      },
+      { icon: User, label: "Profile", href: "/profile", visible: ["admin", "teacher", "student", "parent"] },
+      { icon: Settings, label: "Settings", href: "/settings", visible: ["admin", "teacher", "student", "parent"] },
     ],
   },
 ];
